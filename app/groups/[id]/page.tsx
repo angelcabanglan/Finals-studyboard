@@ -1,19 +1,22 @@
+import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { getGroupById } from "@/lib/data";
+import { authOptions } from "@/lib/auth";
+import TaskItem from "@/components/TaskItem";
 import DeleteGroupButton from "@/components/DeleteGroupButton";
 import NewTaskForm from "@/components/NewTaskForm";
-import TaskItem from "@/components/TaskItem";
 import BookSearch from "@/components/BookSearch";
-import { authOptions } from "@/lib/auth";
-import { getGroupById } from "@/lib/data";
-import { getServerSession } from "next-auth";
-import { notFound } from "next/navigation";
+import AISubtaskSuggester from "@/components/AISubtaskSuggester";
 
 export default async function GroupDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
+
   const [group, session] = await Promise.all([
-    getGroupById(params.id),
+    getGroupById(id),
     getServerSession(authOptions),
   ]);
 
@@ -21,49 +24,55 @@ export default async function GroupDetailPage({
     notFound();
   }
 
-  const isOwner = session?.user.id === group.ownerId;
+  const isOwner = session?.user?.id === group.ownerId;
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-purple-950">
-          {group.name}
-        </h1>
-
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">{group.name}</h1>
+          <p className="text-emerald-600 mt-1">
+            {group.subject} · {group.memberCount} members · Created by{" "}
+            {group.owner.name}
+          </p>
+        </div>
         {isOwner && <DeleteGroupButton groupId={group.id} />}
       </div>
 
-      <p className="text-purple-800">
-        {group.subject} · {group.memberCount} members · Created by{" "}
-        {group.owner.name}
-      </p>
+      {isOwner && (
+        <div className="mt-4 flex flex-col gap-3">
+          <NewTaskForm groupId={group.id} />
+        </div>
+      )}
 
-      <h2 className="mt-8 text-lg font-semibold text-purple-950">
-        Tasks
-      </h2>
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Tasks</h2>
+      </div>
 
       <ul className="mt-3 flex flex-col gap-2">
-        {group.tasks.map((task) => (
-          <TaskItem
-            key={task.id}
-            task={task}
-            isOwner={isOwner}
-            groupId={group.id}
-          />
-        ))}
+        {group.tasks.length === 0 ? (
+          <p className="text-sm text-gray-500 italic">No tasks created yet.</p>
+        ) : (
+          group.tasks.map((task) => (
+            <TaskItem
+              key={task.id}
+              task={task}
+              groupId={group.id}
+              isOwner={isOwner}
+            />
+          ))
+        )}
       </ul>
 
-      {isOwner && <NewTaskForm groupId={group.id} />}
+      <div className="mt-6">
+        <AISubtaskSuggester groupId={group.id} />
+      </div>
 
-      <h2 className="mt-10 text-lg font-semibold">
-        Reference Books
-      </h2>
-
+      <h2 className="mt-10 text-lg font-semibold">Reference Books</h2>
       <p className="mt-1 text-sm text-gray-500">
         Powered by the Open Library API — search for books related to{" "}
         {group.subject}.
       </p>
-
       <div className="mt-3">
         <BookSearch initialQuery={group.subject} />
       </div>

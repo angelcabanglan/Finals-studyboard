@@ -6,12 +6,12 @@ import { Task } from "@/lib/data";
 
 export default function TaskItem({
   task,
-  isOwner,
   groupId,
+  isOwner,
 }: {
   task: Task;
-  isOwner: boolean;
   groupId: string;
+  isOwner: boolean;
 }) {
   const router = useRouter();
   const [done, setDone] = useState(task.done);
@@ -21,20 +21,23 @@ export default function TaskItem({
   async function handleToggle() {
     if (!isOwner) return;
 
-    const previousDone = done;
-    const newDone = !done;
-    setDone(newDone);
+    const previous = done;
+    const next = !done;
+
+    setDone(next);
     setError("");
 
     const res = await fetch(`/api/groups/${groupId}/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ done: newDone }),
+      body: JSON.stringify({ done: next }),
     });
 
     if (!res.ok) {
-      setDone(previousDone);
-      setError("Failed to update task.");
+      setDone(previous);
+      const isJson = res.headers.get("content-type")?.includes("application/json");
+      const data = isJson ? await res.json() : null;
+      setError(data?.error ?? `Failed to update task (status ${res.status}).`);
     }
   }
 
@@ -49,8 +52,10 @@ export default function TaskItem({
     });
 
     if (!res.ok) {
+      const isJson = res.headers.get("content-type")?.includes("application/json");
+      const data = isJson ? await res.json() : null;
+      setError(data?.error ?? `Failed to delete task (status ${res.status}).`);
       setIsDeleting(false);
-      setError("Failed to delete task.");
       return;
     }
 
@@ -58,30 +63,30 @@ export default function TaskItem({
   }
 
   return (
-    <li className="flex items-center gap-3 rounded-md border px-3 py-2">
-      <input
-        type="checkbox"
-        checked={done}
-        onChange={handleToggle}
-        disabled={!isOwner}
-        className="h-4 w-4"
-      />
-      <span className={done ? "line-through text-gray-400" : ""}>
-        {task.title}
-      </span>
-
-      {isOwner && (
-        <button
-          onClick={handleDelete}
-          disabled={isDeleting}
-          className="ml-auto text-xs text-red-600 hover:underline disabled:opacity-50"
-        >
-          {isDeleting ? "Deleting..." : "Delete"}
-        </button>
-      )}
-
-      {error && <p className="text-xs text-red-600">{error}</p>}
+    <li className="rounded-md border px-3 py-2">
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          checked={done}
+          onChange={handleToggle}
+          disabled={!isOwner || isDeleting}
+          className="h-4 w-4 disabled:opacity-50"
+        />
+        <span className={`flex-1 ${done ? "line-through text-gray-400" : ""}`}>
+          {task.title}
+        </span>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="text-sm text-red-600 hover:underline disabled:opacity-50"
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+        )}
+      </div>
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
     </li>
   );
 }
-

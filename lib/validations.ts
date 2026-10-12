@@ -1,24 +1,27 @@
 import { z } from "zod";
 
-// Schema para sa Register (kasama ang name)
 export const registerSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().trim().min(1, "Name is required").max(100),
+  email: z.string().trim().email("Input a valid email address"),
+  password: z.string().trim().min(8, "Password must be at least 8 characters long"),
 });
 
-// Schema para sa Groups
 export const createGroupSchema = z.object({
-  name: z.string().min(1, "Group name is required"),
-  subject: z.string().min(1, "Subject is required"), // <-- Idagdag ito!
+  name: z.string().trim().min(1, "Name is required").max(100),
+  subject: z.string().trim().min(1, "Subject is required").max(100),
+  memberCount: z.number().int().positive().optional(),
 });
 
 export const updateGroupSchema = createGroupSchema.partial();
 
-// Schema para sa Tasks
 export const createTaskSchema = z.object({
-  title: z.string().min(1, "Task title is required"),
+  title: z.string().trim().min(1, "Title is required").max(200), 
   description: z.string().optional(),
 });
 
-export const updateTaskSchema = createTaskSchema.partial();
+export const updateTaskSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(200).optional(),
+  done: z.boolean().optional(),
+}).refine((updates) => updates.title !== undefined || updates.done !== undefined, {
+  message: "At least one task field is required",
+});
